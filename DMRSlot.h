@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2015,2016,2017 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2015,2016,2017,2018 by Jonathan Naylor G4KLX
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -20,8 +20,7 @@
 #define	DMRSlot_H
 
 #include "RSSIInterpolator.h"
-#include "DMREmbeddedLC.h"
-#include "DMRDataHeader.h"
+#include "DMREmbeddedData.h"
 #include "DMRNetwork.h"
 #include "RingBuffer.h"
 #include "StopWatch.h"
@@ -37,12 +36,20 @@
 
 #include <vector>
 
+enum ACTIVITY_TYPE {
+	ACTIVITY_NONE,
+	ACTIVITY_VOICE,
+	ACTIVITY_DATA,
+	ACTIVITY_CSBK,
+	ACTIVITY_EMERG
+};
+
 class CDMRSlot {
 public:
 	CDMRSlot(unsigned int slotNo, unsigned int timeout);
 	~CDMRSlot();
 
-	void writeModem(unsigned char* data, unsigned int len);
+	bool writeModem(unsigned char* data, unsigned int len);
 
 	unsigned int readModem(unsigned char* data);
 
@@ -50,39 +57,44 @@ public:
 
 	void clock();
 
-	static void init(unsigned int colorCode, unsigned int callHang, CModem* modem, CDMRNetwork* network, CDisplay* display, bool duplex, CDMRLookup* lookup, CRSSIInterpolator* rssiMapper, unsigned int jitter);
+	static void init(unsigned int colorCode, bool embeddedLCOnly, bool dumpTAData, unsigned int callHang, CModem* modem, CDMRNetwork* network, CDisplay* display, bool duplex, CDMRLookup* lookup, CRSSIInterpolator* rssiMapper);
 
 private:
 	unsigned int               m_slotNo;
 	CRingBuffer<unsigned char> m_queue;
 	RPT_RF_STATE               m_rfState;
 	RPT_NET_STATE              m_netState;
-	CDMREmbeddedLC             m_rfEmbeddedLC;
-	CDMREmbeddedLC             m_netEmbeddedLC;
+	CDMREmbeddedData           m_rfEmbeddedLC;
+	CDMREmbeddedData*          m_rfEmbeddedData;
+	unsigned int               m_rfEmbeddedReadN;
+	unsigned int               m_rfEmbeddedWriteN;
+	unsigned char              m_rfTalkerId;
+	unsigned char*             m_rfTalkerAlias;
+	CDMREmbeddedData           m_netEmbeddedLC;
+	CDMREmbeddedData*          m_netEmbeddedData;
+	unsigned int               m_netEmbeddedReadN;
+	unsigned int               m_netEmbeddedWriteN;
+	unsigned char              m_netTalkerId;
 	CDMRLC*                    m_rfLC;
 	CDMRLC*                    m_netLC;
-	CDMRDataHeader             m_rfDataHeader;
-	CDMRDataHeader             m_netDataHeader;
 	unsigned char              m_rfSeqNo;
-	unsigned char              m_netSeqNo;
 	unsigned char              m_rfN;
 	unsigned char              m_netN;
 	CTimer                     m_networkWatchdog;
 	CTimer                     m_rfTimeoutTimer;
 	CTimer                     m_netTimeoutTimer;
-	CTimer                     m_packetTimer;
 	CStopWatch                 m_interval;
-	CStopWatch                 m_elapsed;
 	unsigned int               m_rfFrames;
 	unsigned int               m_netFrames;
 	unsigned int               m_netLost;
+	unsigned int               m_netMissed;
 	CAMBEFEC                   m_fec;
 	unsigned int               m_rfBits;
 	unsigned int               m_netBits;
 	unsigned int               m_rfErrs;
 	unsigned int               m_netErrs;
-	unsigned char*             m_lastFrame;
-	bool                       m_lastFrameValid;
+	bool                       m_rfTimeout;
+	bool                       m_netTimeout;
 	unsigned char              m_rssi;
 	unsigned char              m_maxRSSI;
 	unsigned char              m_minRSSI;
@@ -91,6 +103,9 @@ private:
 	FILE*                      m_fp;
 
 	static unsigned int        m_colorCode;
+
+	static bool                m_embeddedLCOnly;
+	static bool                m_dumpTAData;
 
 	static CModem*             m_modem;
 	static CDMRNetwork*        m_network;
@@ -101,25 +116,21 @@ private:
 
 	static CRSSIInterpolator*  m_rssiMapper;
 
-	static unsigned int        m_jitterTime;
-	static unsigned int        m_jitterSlots;
-
 	static unsigned char*      m_idle;
 
-	static FLCO                m_flco1;
+    static FLCO                m_flco1;
 	static unsigned char       m_id1;
-	static bool                m_voice1;
+	static ACTIVITY_TYPE       m_activity1;
 	static FLCO                m_flco2;
 	static unsigned char       m_id2;
-	static bool                m_voice2;
+	static ACTIVITY_TYPE       m_activity2;
+
+	void logGPSPosition(const unsigned char* data);
 
 	void writeQueueRF(const unsigned char* data);
 	void writeQueueNet(const unsigned char* data);
 	void writeNetworkRF(const unsigned char* data, unsigned char dataType, unsigned char errors = 0U);
 	void writeNetworkRF(const unsigned char* data, unsigned char dataType, FLCO flco, unsigned int srcId, unsigned int dstId, unsigned char errors = 0U);
-
-	void endOfRFData();
-	void endOfNetData();
 
 	void writeEndRF(bool writeEnd = false);
 	void writeEndNet(bool writeEnd = false);
@@ -128,10 +139,9 @@ private:
 	bool writeFile(const unsigned char* data);
 	void closeFile();
 
-	bool insertSilence(const unsigned char* data, unsigned char seqNo);
-	void insertSilence(unsigned int count);
+	unsigned char repeatFrame(unsigned char* data);
 
-	static void setShortLC(unsigned int slotNo, unsigned int id, FLCO flco = FLCO_GROUP, bool voice = true);
+	static void setShortLC(unsigned int slotNo, unsigned int id, FLCO flco = FLCO_GROUP, ACTIVITY_TYPE type = ACTIVITY_NONE);
 };
 
 #endif

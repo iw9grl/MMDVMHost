@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2015,2016,2017 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2015,2016,2017,2018 by Jonathan Naylor G4KLX
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -55,10 +55,9 @@ enum SECTION {
 CConf::CConf(const std::string& file) :
 m_file(file),
 m_callsign(),
+m_id(0U),
 m_timeout(120U),
 m_duplex(true),
-m_rfModeHang(10U),
-m_netModeHang(3U),
 m_display(),
 m_daemon(false),
 m_rxFrequency(0U),
@@ -76,6 +75,7 @@ m_logFilePath(),
 m_logFileRoot(),
 m_cwIdEnabled(false),
 m_cwIdTime(10U),
+m_cwIdCallsign(),
 m_dmrIdLookupFile(),
 m_dmrIdLookupTime(0U),
 m_modemPort(),
@@ -84,14 +84,19 @@ m_modemTXInvert(false),
 m_modemPTTInvert(false),
 m_modemTXDelay(100U),
 m_modemDMRDelay(0U),
-m_modemRXLevel(50U),
-m_modemCWIdTXLevel(50U),
-m_modemDStarTXLevel(50U),
-m_modemDMRTXLevel(50U),
-m_modemYSFTXLevel(50U),
-m_modemP25TXLevel(50U),
-m_modemOscOffset(0),
+m_modemTXOffset(0),
+m_modemRXOffset(0),
+m_modemRXDCOffset(0),
+m_modemTXDCOffset(0),
+m_modemRFLevel(100.0F),
+m_modemRXLevel(50.0F),
+m_modemCWIdTXLevel(50.0F),
+m_modemDStarTXLevel(50.0F),
+m_modemDMRTXLevel(50.0F),
+m_modemYSFTXLevel(50.0F),
+m_modemP25TXLevel(50.0F),
 m_modemRSSIMappingFile(),
+m_modemTrace(false),
 m_modemDebug(false),
 m_umpEnabled(false),
 m_umpPort(),
@@ -99,11 +104,20 @@ m_dstarEnabled(false),
 m_dstarModule("C"),
 m_dstarSelfOnly(false),
 m_dstarBlackList(),
+m_dstarAckReply(true),
+m_dstarAckTime(750U),
+m_dstarErrorReply(true),
+m_dstarRemoteGateway(false),
+m_dstarModeHang(10U),
 m_dmrEnabled(false),
 m_dmrBeacons(false),
+m_dmrBeaconInterval(60U),
+m_dmrBeaconDuration(3U),
 m_dmrId(0U),
 m_dmrColorCode(2U),
 m_dmrSelfOnly(false),
+m_dmrEmbeddedLCOnly(false),
+m_dmrDumpTAData(true),
 m_dmrPrefixes(),
 m_dmrBlackList(),
 m_dmrWhiteList(),
@@ -111,14 +125,26 @@ m_dmrSlot1TGWhiteList(),
 m_dmrSlot2TGWhiteList(),
 m_dmrCallHang(3U),
 m_dmrTXHang(4U),
+m_dmrModeHang(10U),
 m_fusionEnabled(false),
+m_fusionLowDeviation(false),
 m_fusionRemoteGateway(false),
+m_fusionSelfOnly(false),
+m_fusionSQLEnabled(false),
+m_fusionSQL(0U),
+m_fusionModeHang(10U),
 m_p25Enabled(false),
+m_p25Id(0U),
 m_p25NAC(0x293U),
+m_p25SelfOnly(false),
+m_p25OverrideUID(false),
+m_p25RemoteGateway(false),
+m_p25ModeHang(10U),
 m_dstarNetworkEnabled(false),
 m_dstarGatewayAddress(),
 m_dstarGatewayPort(0U),
 m_dstarLocalPort(0U),
+m_dstarNetworkModeHang(3U),
 m_dstarNetworkDebug(false),
 m_dmrNetworkEnabled(false),
 m_dmrNetworkAddress(),
@@ -127,19 +153,23 @@ m_dmrNetworkLocal(0U),
 m_dmrNetworkPassword(),
 m_dmrNetworkOptions(),
 m_dmrNetworkDebug(false),
+m_dmrNetworkJitterEnabled(true),
 m_dmrNetworkJitter(300U),
 m_dmrNetworkSlot1(true),
 m_dmrNetworkSlot2(true),
+m_dmrNetworkModeHang(3U),
 m_fusionNetworkEnabled(false),
 m_fusionNetworkMyAddress(),
 m_fusionNetworkMyPort(0U),
-m_fusionNetworkGwyAddress(),
-m_fusionNetworkGwyPort(0U),
+m_fusionNetworkGatewayAddress(),
+m_fusionNetworkGatewayPort(0U),
+m_fusionNetworkModeHang(3U),
 m_fusionNetworkDebug(false),
 m_p25NetworkEnabled(false),
 m_p25GatewayAddress(),
 m_p25GatewayPort(0U),
 m_p25LocalPort(0U),
+m_p25NetworkModeHang(3U),
 m_p25NetworkDebug(false),
 m_tftSerialPort("/dev/ttyAMA0"),
 m_tftSerialBrightness(50U),
@@ -158,9 +188,11 @@ m_nextionBrightness(50U),
 m_nextionDisplayClock(false),
 m_nextionUTC(false),
 m_nextionIdleBrightness(20U),
+m_nextionScreenLayout(0U),
 m_oledType(3U),
 m_oledBrightness(0U),
 m_oledInvert(false),
+m_oledScroll(false),
 m_lcdprocAddress(),
 m_lcdprocPort(0U),
 m_lcdprocLocalPort(0U),
@@ -190,7 +222,7 @@ bool CConf::read()
 
     if (buffer[0U] == '[') {
       if (::strncmp(buffer, "[General]", 9U) == 0)
-        section = SECTION_GENERAL;
+          section = SECTION_GENERAL;
 	  else if (::strncmp(buffer, "[Info]", 6U) == 0)
 		  section = SECTION_INFO;
 	  else if (::strncmp(buffer, "[Log]", 5U) == 0)
@@ -213,9 +245,9 @@ bool CConf::read()
 		  section = SECTION_P25;
 	  else if (::strncmp(buffer, "[D-Star Network]", 16U) == 0)
 		  section = SECTION_DSTAR_NETWORK;
-      else if (::strncmp(buffer, "[DMR Network]", 13U) == 0)
+	  else if (::strncmp(buffer, "[DMR Network]", 13U) == 0)
 		  section = SECTION_DMR_NETWORK;
-      else if (::strncmp(buffer, "[System Fusion Network]", 23U) == 0)
+	  else if (::strncmp(buffer, "[System Fusion Network]", 23U) == 0)
 		  section = SECTION_FUSION_NETWORK;
 	  else if (::strncmp(buffer, "[P25 Network]", 13U) == 0)
 		  section = SECTION_P25_NETWORK;
@@ -232,30 +264,43 @@ bool CConf::read()
 	  else
 		  section = SECTION_NONE;
 
-      continue;
-    }
+	  continue;
+  }
 
-    char* key   = ::strtok(buffer, " \t=\r\n");
-    if (key == NULL)
-      continue;
+  char* key   = ::strtok(buffer, " \t=\r\n");
+  if (key == NULL)
+    continue;
 
-    char* value = ::strtok(NULL, "\r\n");
-	if (section == SECTION_GENERAL) {
+  char* value = ::strtok(NULL, "\r\n");
+  if (value == NULL)
+    continue;
+
+  // Remove quotes from the value
+  size_t len = ::strlen(value);
+  if (len > 1U && *value == '"' && value[len - 1U] == '"') {
+	  value[len - 1U] = '\0';
+	  value++;
+  }
+
+  if (section == SECTION_GENERAL) {
 		if (::strcmp(key, "Callsign") == 0) {
 			// Convert the callsign to upper case
 			for (unsigned int i = 0U; value[i] != 0; i++)
 				value[i] = ::toupper(value[i]);
-			m_callsign = value;
-		} else if (::strcmp(key, "Timeout") == 0)
+			m_cwIdCallsign = m_callsign = value;
+		} else if (::strcmp(key, "Id") == 0)
+			m_id = m_p25Id = m_dmrId = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "Timeout") == 0)
 			m_timeout = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "Duplex") == 0)
 			m_duplex = ::atoi(value) == 1;
 		else if (::strcmp(key, "ModeHang") == 0)
-			m_rfModeHang  = m_netModeHang = (unsigned int)::atoi(value);
+			m_dstarNetworkModeHang = m_dmrNetworkModeHang = m_fusionNetworkModeHang = m_p25NetworkModeHang =
+			m_dstarModeHang        = m_dmrModeHang        = m_fusionModeHang        = m_p25ModeHang        = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "RFModeHang") == 0)
-			m_rfModeHang = (unsigned int)::atoi(value);
+			m_dstarModeHang = m_dmrModeHang = m_fusionModeHang = m_p25ModeHang = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "NetModeHang") == 0)
-			m_netModeHang = (unsigned int)::atoi(value);
+			m_dstarNetworkModeHang = m_dmrNetworkModeHang = m_fusionNetworkModeHang = m_p25NetworkModeHang = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "Display") == 0)
 			m_display = value;
 		else if (::strcmp(key, "Daemon") == 0)
@@ -293,6 +338,12 @@ bool CConf::read()
 			m_cwIdEnabled = ::atoi(value) == 1;
 		else if (::strcmp(key, "Time") == 0)
 			m_cwIdTime = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "Callsign") == 0) {
+			// Convert the callsign to upper case
+			for (unsigned int i = 0U; value[i] != 0; i++)
+				value[i] = ::toupper(value[i]);
+			m_cwIdCallsign = value;
+		}
 	} else if (section == SECTION_DMRID_LOOKUP) {
 		if (::strcmp(key, "File") == 0)
 			m_dmrIdLookupFile = value;
@@ -311,24 +362,34 @@ bool CConf::read()
 			m_modemTXDelay = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "DMRDelay") == 0)
 			m_modemDMRDelay = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "RXOffset") == 0)
+			m_modemRXOffset = ::atoi(value);
+		else if (::strcmp(key, "TXOffset") == 0)
+			m_modemTXOffset = ::atoi(value);
+		else if (::strcmp(key, "RXDCOffset") == 0)
+			m_modemRXDCOffset = ::atoi(value);
+		else if (::strcmp(key, "TXDCOffset") == 0)
+			m_modemTXDCOffset = ::atoi(value);
+		else if (::strcmp(key, "RFLevel") == 0)
+			m_modemRFLevel = float(::atof(value));
 		else if (::strcmp(key, "RXLevel") == 0)
-			m_modemRXLevel = (unsigned int)::atoi(value);
+			m_modemRXLevel = float(::atof(value));
 		else if (::strcmp(key, "TXLevel") == 0)
-			m_modemCWIdTXLevel = m_modemDStarTXLevel = m_modemDMRTXLevel = m_modemYSFTXLevel = m_modemP25TXLevel = (unsigned int)::atoi(value);
+			m_modemCWIdTXLevel = m_modemDStarTXLevel = m_modemDMRTXLevel = m_modemYSFTXLevel = m_modemP25TXLevel = float(::atof(value));
 		else if (::strcmp(key, "CWIdTXLevel") == 0)
-			m_modemCWIdTXLevel = (unsigned int)::atoi(value);
+			m_modemCWIdTXLevel = float(::atof(value));
 		else if (::strcmp(key, "D-StarTXLevel") == 0)
-			m_modemDStarTXLevel = (unsigned int)::atoi(value);
+			m_modemDStarTXLevel = float(::atof(value));
 		else if (::strcmp(key, "DMRTXLevel") == 0)
-			m_modemDMRTXLevel = (unsigned int)::atoi(value);
+			m_modemDMRTXLevel = float(::atof(value));
 		else if (::strcmp(key, "YSFTXLevel") == 0)
-			m_modemYSFTXLevel = (unsigned int)::atoi(value);
+			m_modemYSFTXLevel = float(::atof(value));
 		else if (::strcmp(key, "P25TXLevel") == 0)
-			m_modemP25TXLevel = (unsigned int)::atoi(value);
-		else if (::strcmp(key, "OscOffset") == 0)
-			m_modemOscOffset = ::atoi(value);
+			m_modemP25TXLevel = float(::atof(value));
 		else if (::strcmp(key, "RSSIMappingFile") == 0)
 			m_modemRSSIMappingFile = value;
+		else if (::strcmp(key, "Trace") == 0)
+			m_modemTrace = ::atoi(value) == 1;
 		else if (::strcmp(key, "Debug") == 0)
 			m_modemDebug = ::atoi(value) == 1;
 	} else if (section == SECTION_UMP) {
@@ -358,18 +419,35 @@ bool CConf::read()
 				}
 				p = ::strtok(NULL, ",\r\n");
 			}
-		}
+		} else if (::strcmp(key, "AckReply") == 0)
+			m_dstarAckReply = ::atoi(value) == 1;
+		else if (::strcmp(key, "AckTime") == 0)
+			m_dstarAckTime = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "ErrorReply") == 0)
+			m_dstarErrorReply = ::atoi(value) == 1;
+		else if (::strcmp(key, "RemoteGateway") == 0)
+			m_dstarRemoteGateway = ::atoi(value) == 1;
+		else if (::strcmp(key, "ModeHang") == 0)
+			m_dstarModeHang = (unsigned int)::atoi(value);
 	} else if (section == SECTION_DMR) {
 		if (::strcmp(key, "Enable") == 0)
 			m_dmrEnabled = ::atoi(value) == 1;
 		else if (::strcmp(key, "Beacons") == 0)
 			m_dmrBeacons = ::atoi(value) == 1;
+		else if (::strcmp(key, "BeaconInterval") == 0)
+			m_dmrBeaconInterval = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "BeaconDuration") == 0)
+			m_dmrBeaconDuration = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "Id") == 0)
 			m_dmrId = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "ColorCode") == 0)
 			m_dmrColorCode = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "SelfOnly") == 0)
 			m_dmrSelfOnly = ::atoi(value) == 1;
+		else if (::strcmp(key, "EmbeddedLCOnly") == 0)
+			m_dmrEmbeddedLCOnly = ::atoi(value) == 1;
+		else if (::strcmp(key, "DumpTAData") == 0)
+			m_dmrDumpTAData = ::atoi(value) == 1;
 		else if (::strcmp(key, "Prefixes") == 0) {
 			char* p = ::strtok(value, ",\r\n");
 			while (p != NULL) {
@@ -414,16 +492,37 @@ bool CConf::read()
 			m_dmrTXHang = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "CallHang") == 0)
 			m_dmrCallHang = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "ModeHang") == 0)
+			m_dmrModeHang = (unsigned int)::atoi(value);
 	} else if (section == SECTION_FUSION) {
 		if (::strcmp(key, "Enable") == 0)
 			m_fusionEnabled = ::atoi(value) == 1;
-		else if (::strcmp(key, "RemoteGateway") == 0)
+		else if (::strcmp(key, "LowDeviation") == 0)
+			m_fusionLowDeviation = ::atoi(value) == 1;
+		else if (::strcmp(key, "DSQ") == 0) {
+			m_fusionSQLEnabled = true;
+			m_fusionSQL        = (unsigned int)::atoi(value);
+		} else if (::strcmp(key, "RemoteGateway") == 0)
 			m_fusionRemoteGateway = ::atoi(value) == 1;
+		else if (::strcmp(key, "SelfOnly") == 0)
+			m_fusionSelfOnly = ::atoi(value) == 1;
+		else if (::strcmp(key, "ModeHang") == 0)
+			m_fusionModeHang = (unsigned int)::atoi(value);
 	} else if (section == SECTION_P25) {
 		if (::strcmp(key, "Enable") == 0)
 			m_p25Enabled = ::atoi(value) == 1;
+		else if (::strcmp(key, "Id") == 0)
+			m_p25Id = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "NAC") == 0)
 			m_p25NAC = (unsigned int)::strtoul(value, NULL, 16);
+		else if (::strcmp(key, "OverrideUIDCheck") == 0)
+			m_p25OverrideUID = ::atoi(value) == 1;
+		else if (::strcmp(key, "SelfOnly") == 0)
+			m_p25SelfOnly = ::atoi(value) == 1;
+		else if (::strcmp(key, "RemoteGateway") == 0)
+			m_p25RemoteGateway = ::atoi(value) == 1;
+		else if (::strcmp(key, "ModeHang") == 0)
+			m_p25ModeHang = (unsigned int)::atoi(value);
 	} else if (section == SECTION_DSTAR_NETWORK) {
 		if (::strcmp(key, "Enable") == 0)
 			m_dstarNetworkEnabled = ::atoi(value) == 1;
@@ -433,6 +532,8 @@ bool CConf::read()
 			m_dstarGatewayPort = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "LocalPort") == 0)
 			m_dstarLocalPort = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "ModeHang") == 0)
+			m_dstarNetworkModeHang = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "Debug") == 0)
 			m_dstarNetworkDebug = ::atoi(value) == 1;
 	} else if (section == SECTION_DMR_NETWORK) {
@@ -450,12 +551,16 @@ bool CConf::read()
 			m_dmrNetworkOptions = value;
 		else if (::strcmp(key, "Debug") == 0)
 			m_dmrNetworkDebug = ::atoi(value) == 1;
+		else if (::strcmp(key, "JitterEnabled") == 0)
+			m_dmrNetworkJitterEnabled = ::atoi(value) == 1;
 		else if (::strcmp(key, "Jitter") == 0)
 			m_dmrNetworkJitter = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "Slot1") == 0)
 			m_dmrNetworkSlot1 = ::atoi(value) == 1;
 		else if (::strcmp(key, "Slot2") == 0)
 			m_dmrNetworkSlot2 = ::atoi(value) == 1;
+		else if (::strcmp(key, "ModeHang") == 0)
+			m_dmrNetworkModeHang = (unsigned int)::atoi(value);
 	} else if (section == SECTION_FUSION_NETWORK) {
 		if (::strcmp(key, "Enable") == 0)
 			m_fusionNetworkEnabled = ::atoi(value) == 1;
@@ -463,10 +568,12 @@ bool CConf::read()
 			m_fusionNetworkMyAddress = value;
 		else if (::strcmp(key, "LocalPort") == 0)
 			m_fusionNetworkMyPort = (unsigned int)::atoi(value);
-		else if (::strcmp(key, "GwyAddress") == 0)
-			m_fusionNetworkGwyAddress = value;
-		else if (::strcmp(key, "GwyPort") == 0)
-			m_fusionNetworkGwyPort = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "GatewayAddress") == 0)
+			m_fusionNetworkGatewayAddress = value;
+		else if (::strcmp(key, "GatewayPort") == 0)
+			m_fusionNetworkGatewayPort = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "ModeHang") == 0)
+			m_fusionNetworkModeHang = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "Debug") == 0)
 			m_fusionNetworkDebug = ::atoi(value) == 1;
 	} else if (section == SECTION_P25_NETWORK) {
@@ -478,6 +585,8 @@ bool CConf::read()
 			m_p25GatewayPort = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "LocalPort") == 0)
 			m_p25LocalPort = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "ModeHang") == 0)
+			m_p25NetworkModeHang = (unsigned int)::atoi(value);
 		else if (::strcmp(key, "Debug") == 0)
 			m_p25NetworkDebug = ::atoi(value) == 1;
 	} else if (section == SECTION_TFTSERIAL) {
@@ -523,6 +632,8 @@ bool CConf::read()
 			m_nextionUTC = ::atoi(value) == 1;
 		else if (::strcmp(key, "IdleBrightness") == 0)
 			m_nextionIdleBrightness = (unsigned int)::atoi(value);
+		else if (::strcmp(key, "ScreenLayout") == 0)
+			m_nextionScreenLayout = (unsigned int)::atoi(value);
 	} else if (section == SECTION_OLED) {
 		if (::strcmp(key, "Type") == 0)
 			m_oledType = (unsigned char)::atoi(value);
@@ -530,6 +641,8 @@ bool CConf::read()
 			m_oledBrightness = (unsigned char)::atoi(value);
 		else if (::strcmp(key, "Invert") == 0)
 			m_oledInvert = ::atoi(value) == 1;
+		else if (::strcmp(key, "Scroll") == 0)
+			m_oledScroll = ::atoi(value) == 1;
 	} else if (section == SECTION_LCDPROC) {
 		if (::strcmp(key, "Address") == 0)
 			m_lcdprocAddress = value;
@@ -553,32 +666,27 @@ bool CConf::read()
 
 std::string CConf::getCallsign() const
 {
-  return m_callsign;
+	return m_callsign;
+}
+
+unsigned int CConf::getId() const
+{
+	return m_id;
 }
 
 unsigned int CConf::getTimeout() const
 {
-  return m_timeout;
+	return m_timeout;
 }
 
 bool CConf::getDuplex() const
 {
-  return m_duplex;
-}
-
-unsigned int CConf::getRFModeHang() const
-{
-  return m_rfModeHang;
-}
-
-unsigned int CConf::getNetModeHang() const
-{
-	return m_netModeHang;
+	return m_duplex;
 }
 
 std::string CConf::getDisplay() const
 {
-  return m_display;
+	return m_display;
 }
 
 bool CConf::getDaemon() const
@@ -586,12 +694,12 @@ bool CConf::getDaemon() const
 	return m_daemon;
 }
 
-unsigned int CConf::getRxFrequency() const
+unsigned int CConf::getRXFrequency() const
 {
 	return m_rxFrequency;
 }
 
-unsigned int CConf::getTxFrequency() const
+unsigned int CConf::getTXFrequency() const
 {
 	return m_txFrequency;
 }
@@ -643,12 +751,12 @@ unsigned int CConf::getLogFileLevel() const
 
 std::string CConf::getLogFilePath() const
 {
-  return m_logFilePath;
+	return m_logFilePath;
 }
 
 std::string CConf::getLogFileRoot() const
 {
-  return m_logFileRoot;
+	return m_logFileRoot;
 }
 
 bool CConf::getCWIdEnabled() const
@@ -659,6 +767,11 @@ bool CConf::getCWIdEnabled() const
 unsigned int CConf::getCWIdTime() const
 {
 	return m_cwIdTime;
+}
+
+std::string CConf::getCWIdCallsign() const
+{
+	return m_cwIdCallsign;
 }
 
 std::string CConf::getDMRIdLookupFile() const
@@ -701,44 +814,69 @@ unsigned int CConf::getModemDMRDelay() const
 	return m_modemDMRDelay;
 }
 
-unsigned int CConf::getModemRXLevel() const
+int CConf::getModemRXOffset() const
+{
+	return m_modemRXOffset;
+}
+
+int CConf::getModemTXOffset() const
+{
+	return m_modemTXOffset;
+}
+
+int CConf::getModemRXDCOffset() const
+{
+	return m_modemRXDCOffset;
+}
+
+int CConf::getModemTXDCOffset() const
+{
+	return m_modemTXDCOffset;
+}
+
+float CConf::getModemRFLevel() const
+{
+	return m_modemRFLevel;
+}
+
+float CConf::getModemRXLevel() const
 {
 	return m_modemRXLevel;
 }
 
-unsigned int CConf::getModemCWIdTXLevel() const
+float CConf::getModemCWIdTXLevel() const
 {
 	return m_modemCWIdTXLevel;
 }
 
-unsigned int CConf::getModemDStarTXLevel() const
+float CConf::getModemDStarTXLevel() const
 {
 	return m_modemDStarTXLevel;
 }
 
-unsigned int CConf::getModemDMRTXLevel() const
+float CConf::getModemDMRTXLevel() const
 {
 	return m_modemDMRTXLevel;
 }
 
-unsigned int CConf::getModemYSFTXLevel() const
+float CConf::getModemYSFTXLevel() const
 {
 	return m_modemYSFTXLevel;
 }
 
-unsigned int CConf::getModemP25TXLevel() const
+float CConf::getModemP25TXLevel() const
 {
 	return m_modemP25TXLevel;
-}
-
-int CConf::getModemOscOffset() const
-{
-	return m_modemOscOffset;
 }
 
 std::string CConf::getModemRSSIMappingFile () const
 {
 	return m_modemRSSIMappingFile;
+}
+
+bool CConf::getModemTrace() const
+{
+	return m_modemTrace;
 }
 
 bool CConf::getModemDebug() const
@@ -776,6 +914,31 @@ std::vector<std::string> CConf::getDStarBlackList() const
 	return m_dstarBlackList;
 }
 
+bool CConf::getDStarAckReply() const
+{
+	return m_dstarAckReply;
+}
+
+unsigned int CConf::getDStarAckTime() const
+{
+	return m_dstarAckTime;
+}
+
+bool CConf::getDStarErrorReply() const
+{
+	return m_dstarErrorReply;
+}
+
+bool CConf::getDStarRemoteGateway() const
+{
+	return m_dstarRemoteGateway;
+}
+
+unsigned int CConf::getDStarModeHang() const
+{
+	return m_dstarModeHang;
+}
+
 bool CConf::getDMREnabled() const
 {
 	return m_dmrEnabled;
@@ -784,6 +947,16 @@ bool CConf::getDMREnabled() const
 bool CConf::getDMRBeacons() const
 {
 	return m_dmrBeacons;
+}
+
+unsigned int CConf::getDMRBeaconInterval() const
+{
+	return m_dmrBeaconInterval;
+}
+
+unsigned int CConf::getDMRBeaconDuration() const
+{
+	return m_dmrBeaconDuration;
 }
 
 unsigned int CConf::getDMRId() const
@@ -799,6 +972,16 @@ unsigned int CConf::getDMRColorCode() const
 bool CConf::getDMRSelfOnly() const
 {
 	return m_dmrSelfOnly;
+}
+
+bool CConf::getDMREmbeddedLCOnly() const
+{
+	return m_dmrEmbeddedLCOnly;
+}
+
+bool CConf::getDMRDumpTAData() const
+{
+	return m_dmrDumpTAData;
 }
 
 std::vector<unsigned int> CConf::getDMRPrefixes() const
@@ -836,9 +1019,19 @@ unsigned int CConf::getDMRTXHang() const
 	return m_dmrTXHang;
 }
 
+unsigned int CConf::getDMRModeHang() const
+{
+	return m_dmrModeHang;
+}
+
 bool CConf::getFusionEnabled() const
 {
 	return m_fusionEnabled;
+}
+
+bool CConf::getFusionLowDeviation() const
+{
+	return m_fusionLowDeviation;
 }
 
 bool CConf::getFusionRemoteGateway() const
@@ -846,14 +1039,59 @@ bool CConf::getFusionRemoteGateway() const
 	return m_fusionRemoteGateway;
 }
 
+bool CConf::getFusionSelfOnly() const
+{
+	return m_fusionSelfOnly;
+}
+
+bool CConf::getFusionSQLEnabled() const
+{
+	return m_fusionSQLEnabled;
+}
+
+unsigned char CConf::getFusionSQL() const
+{
+	return m_fusionSQL;
+}
+
+unsigned int CConf::getFusionModeHang() const
+{
+	return m_fusionModeHang;
+}
+
 bool CConf::getP25Enabled() const
 {
 	return m_p25Enabled;
 }
 
+unsigned int CConf::getP25Id() const
+{
+	return m_p25Id;
+}
+
 unsigned int CConf::getP25NAC() const
 {
 	return m_p25NAC;
+}
+
+bool CConf::getP25OverrideUID() const
+{
+	return m_p25OverrideUID;
+}
+
+bool CConf::getP25SelfOnly() const
+{
+	return m_p25SelfOnly;
+}
+
+bool CConf::getP25RemoteGateway() const
+{
+	return m_p25RemoteGateway;
+}
+
+unsigned int CConf::getP25ModeHang() const
+{
+	return m_p25ModeHang;
 }
 
 bool CConf::getDStarNetworkEnabled() const
@@ -863,17 +1101,22 @@ bool CConf::getDStarNetworkEnabled() const
 
 std::string CConf::getDStarGatewayAddress() const
 {
-  return m_dstarGatewayAddress;
+	return m_dstarGatewayAddress;
 }
 
 unsigned int CConf::getDStarGatewayPort() const
 {
-  return m_dstarGatewayPort;
+	return m_dstarGatewayPort;
 }
 
 unsigned int CConf::getDStarLocalPort() const
 {
-  return m_dstarLocalPort;
+	return m_dstarLocalPort;
+}
+
+unsigned int CConf::getDStarNetworkModeHang() const
+{
+	return m_dstarNetworkModeHang;
 }
 
 bool CConf::getDStarNetworkDebug() const
@@ -888,12 +1131,12 @@ bool CConf::getDMRNetworkEnabled() const
 
 std::string CConf::getDMRNetworkAddress() const
 {
-  return m_dmrNetworkAddress;
+	return m_dmrNetworkAddress;
 }
 
 unsigned int CConf::getDMRNetworkPort() const
 {
-  return m_dmrNetworkPort;
+	return m_dmrNetworkPort;
 }
 
 unsigned int CConf::getDMRNetworkLocal() const
@@ -903,7 +1146,7 @@ unsigned int CConf::getDMRNetworkLocal() const
 
 std::string CConf::getDMRNetworkPassword() const
 {
-  return m_dmrNetworkPassword;
+	return m_dmrNetworkPassword;
 }
 
 std::string CConf::getDMRNetworkOptions() const
@@ -911,9 +1154,19 @@ std::string CConf::getDMRNetworkOptions() const
 	return m_dmrNetworkOptions;
 }
 
+unsigned int CConf::getDMRNetworkModeHang() const
+{
+	return m_dmrNetworkModeHang;
+}
+
 bool CConf::getDMRNetworkDebug() const
 {
 	return m_dmrNetworkDebug;
+}
+
+bool CConf::getDMRNetworkJitterEnabled() const
+{
+	return m_dmrNetworkJitterEnabled;
 }
 
 unsigned int CConf::getDMRNetworkJitter() const
@@ -946,14 +1199,19 @@ unsigned int CConf::getFusionNetworkMyPort() const
 	return m_fusionNetworkMyPort;
 }
 
-std::string CConf::getFusionNetworkGwyAddress() const
+std::string CConf::getFusionNetworkGatewayAddress() const
 {
-  return m_fusionNetworkGwyAddress;
+	return m_fusionNetworkGatewayAddress;
 }
 
-unsigned int CConf::getFusionNetworkGwyPort() const
+unsigned int CConf::getFusionNetworkGatewayPort() const
 {
-  return m_fusionNetworkGwyPort;
+	return m_fusionNetworkGatewayPort;
+}
+
+unsigned int CConf::getFusionNetworkModeHang() const
+{
+	return m_fusionNetworkModeHang;
 }
 
 bool CConf::getFusionNetworkDebug() const
@@ -981,6 +1239,11 @@ unsigned int CConf::getP25LocalPort() const
 	return m_p25LocalPort;
 }
 
+unsigned int CConf::getP25NetworkModeHang() const
+{
+	return m_p25NetworkModeHang;
+}
+
 bool CConf::getP25NetworkDebug() const
 {
 	return m_p25NetworkDebug;
@@ -988,7 +1251,7 @@ bool CConf::getP25NetworkDebug() const
 
 std::string CConf::getTFTSerialPort() const
 {
-  return m_tftSerialPort;
+	return m_tftSerialPort;
 }
 
 unsigned int CConf::getTFTSerialBrightness() const
@@ -1071,6 +1334,11 @@ unsigned int CConf::getNextionIdleBrightness() const
 	return m_nextionIdleBrightness;
 }
 
+unsigned int CConf::getNextionScreenLayout() const
+{
+	return m_nextionScreenLayout;
+}
+
 unsigned char CConf::getOLEDType() const
 {
 	return m_oledType;
@@ -1084,6 +1352,11 @@ unsigned char CConf::getOLEDBrightness() const
 bool CConf::getOLEDInvert() const
 {
 	return m_oledInvert;
+}
+
+bool CConf::getOLEDScroll() const
+{
+	return m_oledScroll;
 }
 
 std::string CConf::getLCDprocAddress() const

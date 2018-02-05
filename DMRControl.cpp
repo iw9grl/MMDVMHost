@@ -1,5 +1,5 @@
 /*
- *	Copyright (C) 2015,2016,2017 Jonathan Naylor, G4KLX
+ *	Copyright (C) 2015,2016,2017,2018 Jonathan Naylor, G4KLX
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
@@ -21,8 +21,7 @@
 #include <cassert>
 #include <algorithm>
 
-CDMRControl::CDMRControl(unsigned int id, unsigned int colorCode, unsigned int callHang, bool selfOnly, const std::vector<unsigned int>& prefixes, const std::vector<unsigned int>& blacklist, const std::vector<unsigned int>& whitelist, const std::vector<unsigned int>& slot1TGWhitelist, const std::vector<unsigned int>& slot2TGWhitelist, unsigned int timeout, CModem* modem, CDMRNetwork* network, CDisplay* display, bool duplex, CDMRLookup* lookup, CRSSIInterpolator* rssi, unsigned int jitter) :
-m_id(id),
+CDMRControl::CDMRControl(unsigned int id, unsigned int colorCode, unsigned int callHang, bool selfOnly, bool embeddedLCOnly, bool dumpTAData, const std::vector<unsigned int>& prefixes, const std::vector<unsigned int>& blacklist, const std::vector<unsigned int>& whitelist, const std::vector<unsigned int>& slot1TGWhitelist, const std::vector<unsigned int>& slot2TGWhitelist, unsigned int timeout, CModem* modem, CDMRNetwork* network, CDisplay* display, bool duplex, CDMRLookup* lookup, CRSSIInterpolator* rssi) :
 m_colorCode(colorCode),
 m_modem(modem),
 m_network(network),
@@ -39,7 +38,7 @@ m_lookup(lookup)
 	// Load black and white lists to DMRAccessControl
 	CDMRAccessControl::init(blacklist, whitelist, slot1TGWhitelist, slot2TGWhitelist, selfOnly, prefixes, id);
 
-	CDMRSlot::init(colorCode, callHang, modem, network, display, duplex, m_lookup, rssi, jitter);
+	CDMRSlot::init(colorCode, embeddedLCOnly, dumpTAData, callHang, modem, network, display, duplex, m_lookup, rssi);
 }
 
 CDMRControl::~CDMRControl()
@@ -64,39 +63,31 @@ bool CDMRControl::processWakeup(const unsigned char* data)
 		return false;
 
 	unsigned int srcId = csbk.getSrcId();
-	unsigned int bsId  = csbk.getBSId();
-
 	std::string src = m_lookup->find(srcId);
 
 	bool ret = CDMRAccessControl::validateSrcId(srcId);
 	if (!ret) {
-		LogMessage("Invalid CSBK BS_Dwn_Act received from %s", src.c_str());
+		LogMessage("Invalid Downlink Activate received from %s", src.c_str());
 		return false;
 	}
 
-	if (bsId == 0xFFFFFFU) {
-		LogMessage("CSBK BS_Dwn_Act for ANY received from %s", src.c_str());
-		return true;
-	} else if (bsId == m_id) {
-		LogMessage("CSBK BS_Dwn_Act for %u received from %s", bsId, src.c_str());
-		return true;
-	}
+	LogMessage("Downlink Activate received from %s", src.c_str());
 
-	return false;
+	return true;
 }
 
-void CDMRControl::writeModemSlot1(unsigned char *data, unsigned int len)
+bool CDMRControl::writeModemSlot1(unsigned char *data, unsigned int len)
 {
 	assert(data != NULL);
 
-	m_slot1.writeModem(data, len);
+	return m_slot1.writeModem(data, len);
 }
 
-void CDMRControl::writeModemSlot2(unsigned char *data, unsigned int len)
+bool CDMRControl::writeModemSlot2(unsigned char *data, unsigned int len)
 {
 	assert(data != NULL);
 
-	m_slot2.writeModem(data, len);
+	return m_slot2.writeModem(data, len);
 }
 
 unsigned int CDMRControl::readModemSlot1(unsigned char *data)

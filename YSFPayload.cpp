@@ -1,5 +1,5 @@
 /*
-*	Copyright (C) 2016 Jonathan Naylor, G4KLX
+*	Copyright (C) 2016,2017 Jonathan Naylor, G4KLX
 *	Copyright (C) 2016 Mathias Weyland, HB9FRV
 *
 *	This program is free software; you can redistribute it and/or modify
@@ -397,12 +397,14 @@ unsigned int CYSFPayload::processVDMode2Audio(unsigned char* data)
 
 	// We have a total of 5 VCH sections, iterate through each
 	for (unsigned int j = 0U; j < 5U; j++, offset += 144U) {
+		unsigned int errs = 0U;
+
 		unsigned char vch[13U];
 
 		// Deinterleave
 		for (unsigned int i = 0U; i < 104U; i++) {
 			unsigned int n = INTERLEAVE_TABLE_26_4[i];
-			bool s = READ_BIT1(data, offset + n) != 0x00U;
+			bool s = READ_BIT1(data, offset + n);
 			WRITE_BIT1(vch, i, s);
 		}
 
@@ -413,19 +415,34 @@ unsigned int CYSFPayload::processVDMode2Audio(unsigned char* data)
 		//		errors += READ_BIT1(vch, 103); // Padding bit must be zero but apparently it is not...
 
 		for (unsigned int i = 0U; i < 81U; i += 3) {
-			uint8_t vote = bool(READ_BIT1(vch, i)) + bool(READ_BIT1(vch, i + 1)) + bool(READ_BIT1(vch, i + 2));
-			if (vote == 1 || vote == 2) {
-				bool decision = vote / 2; // exploit integer division: 1/2 == 0, 2/2 == 1.
-				WRITE_BIT1(vch, i, decision);
-				WRITE_BIT1(vch, i + 1, decision);
-				WRITE_BIT1(vch, i + 2, decision);
-				errors++;
+			uint8_t vote = 0U;
+			vote += READ_BIT1(vch, i + 0U) ? 1U : 0U;
+			vote += READ_BIT1(vch, i + 1U) ? 1U : 0U;
+			vote += READ_BIT1(vch, i + 2U) ? 1U : 0U;
+
+			switch (vote) {
+			case 1U:		// 1 0 0, or 0 1 0, or 0 0 1, convert to 0 0 0
+				WRITE_BIT1(vch, i + 0U, false);
+				WRITE_BIT1(vch, i + 1U, false);
+				WRITE_BIT1(vch, i + 2U, false);
+				errs++;
+				break;
+			case 2U:		// 1 1 0, or 0 1 1, or 1 0 1, convert to 1 1 1
+				WRITE_BIT1(vch, i + 0U, true);
+				WRITE_BIT1(vch, i + 1U, true);
+				WRITE_BIT1(vch, i + 2U, true);
+				errs++;
+				break;
+			default:	// 0U (0 0 0), or 3U (1 1 1), no errors
+				break;
 			}
 		}
 
-		// Reconstruct only if we have bit errors. Technically we could even
-		// constrain it individually to the 5 VCH sections.
-		if (errors > 0U) {
+		// Reconstruct only if we have bit errors.
+		if (errs > 0U) {
+			// Accumulate the total number of errors
+			errors += errs;
+
 			// Scramble
 			for (unsigned int i = 0U; i < 13U; i++)
 				vch[i] ^= WHITENING_DATA[i];
@@ -797,6 +814,105 @@ unsigned int CYSFPayload::processVoiceFRModeAudio(unsigned char* data)
 	errors += m_fec.regenerateIMBE(data + 72U);
 
 	return errors;
+}
+
+void CYSFPayload::writeHeader(unsigned char* data, const unsigned char* csd1, const unsigned char* csd2)
+{
+	assert(data != NULL);
+	assert(csd1 != NULL);
+	assert(csd2 != NULL);
+
+	writeDataFRModeData1(csd1, data);
+
+	writeDataFRModeData2(csd2, data);
+}
+
+void CYSFPayload::writeDataFRModeData1(const unsigned char* dt, unsigned char* data)
+{
+	assert(dt != NULL);
+	assert(data != NULL);
+
+	data += YSF_SYNC_LENGTH_BYTES + YSF_FICH_LENGTH_BYTES;
+
+	unsigned char output[25U];
+	for (unsigned int i = 0U; i < 20U; i++)
+		output[i] = dt[i] ^ WHITENING_DATA[i];
+
+	CCRC::addCCITT162(output, 22U);
+	output[22U] = 0x00U;
+
+	unsigned char convolved[45U];
+
+	CYSFConvolution conv;
+	conv.encode(output, convolved, 180U);
+
+	unsigned char bytes[45U];
+	unsigned int j = 0U;
+	for (unsigned int i = 0U; i < 180U; i++) {
+		unsigned int n = INTERLEAVE_TABLE_9_20[i];
+
+		bool s0 = READ_BIT1(convolved, j) != 0U;
+		j++;
+
+		bool s1 = READ_BIT1(convolved, j) != 0U;
+		j++;
+
+		WRITE_BIT1(bytes, n, s0);
+
+		n++;
+		WRITE_BIT1(bytes, n, s1);
+	}
+
+	unsigned char* p1 = data;
+	unsigned char* p2 = bytes;
+	for (unsigned int i = 0U; i < 5U; i++) {
+		::memcpy(p1, p2, 9U);
+		p1 += 18U; p2 += 9U;
+	}
+}
+
+void CYSFPayload::writeDataFRModeData2(const unsigned char* dt, unsigned char* data)
+{
+	assert(dt != NULL);
+	assert(data != NULL);
+
+	data += YSF_SYNC_LENGTH_BYTES + YSF_FICH_LENGTH_BYTES;
+
+	unsigned char output[25U];
+	for (unsigned int i = 0U; i < 20U; i++)
+		output[i] = dt[i] ^ WHITENING_DATA[i];
+
+	CCRC::addCCITT162(output, 22U);
+	output[22U] = 0x00U;
+
+	unsigned char convolved[45U];
+
+	CYSFConvolution conv;
+	conv.encode(output, convolved, 180U);
+
+	unsigned char bytes[45U];
+	unsigned int j = 0U;
+	for (unsigned int i = 0U; i < 180U; i++) {
+		unsigned int n = INTERLEAVE_TABLE_9_20[i];
+
+		bool s0 = READ_BIT1(convolved, j) != 0U;
+		j++;
+
+		bool s1 = READ_BIT1(convolved, j) != 0U;
+		j++;
+
+		WRITE_BIT1(bytes, n, s0);
+
+		n++;
+		WRITE_BIT1(bytes, n, s1);
+	}
+
+	unsigned char* p1 = data + 9U;
+	unsigned char* p2 = bytes;
+	for (unsigned int i = 0U; i < 5U; i++) {
+		::memcpy(p1, p2, 9U);
+		p1 += 18U; p2 += 9U;
+	}
 }
 
 void CYSFPayload::setUplink(const std::string& callsign)

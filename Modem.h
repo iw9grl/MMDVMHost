@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2011-2016 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2011-2017 by Jonathan Naylor G4KLX
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -34,13 +34,14 @@ enum RESP_TYPE_MMDVM {
 
 class CModem {
 public:
-	CModem(const std::string& port, bool duplex, bool rxInvert, bool txInvert, bool pttInvert, unsigned int txDelay, unsigned int dmrDelay, int oscOffset, bool debug = false);
+	CModem(const std::string& port, bool duplex, bool rxInvert, bool txInvert, bool pttInvert, unsigned int txDelay, unsigned int dmrDelay, bool trace, bool debug);
 	~CModem();
 
-	void setRFParams(unsigned int rxFrequency, unsigned int txFrequency);
+	void setRFParams(unsigned int rxFrequency, int rxOffset, unsigned int txFrequency, int txOffset, int txDCOffset, int rxDCOffset, float rfLevel);
 	void setModeParams(bool dstarEnabled, bool dmrEnabled, bool ysfEnabled, bool p25Enabled);
-	void setLevels(unsigned int rxLevel, unsigned int cwIdTXLevel, unsigned int dstarTXLevel, unsigned int dmrTXLevel, unsigned int ysfTXLevel, unsigned int p25Enabled);
+	void setLevels(float rxLevel, float cwIdTXLevel, float dstarTXLevel, float dmrTXLevel, float ysfTXLevel, float p25Enabled);
 	void setDMRParams(unsigned int colorCode);
+	void setYSFParams(bool loDev);
 
 	bool open();
 
@@ -88,20 +89,22 @@ public:
 
 private:
 	std::string                m_port;
-	unsigned int               m_colorCode;
+	unsigned int               m_dmrColorCode;
+	bool                       m_ysfLoDev;
 	bool                       m_duplex;
 	bool                       m_rxInvert;
 	bool                       m_txInvert;
 	bool                       m_pttInvert;
 	unsigned int               m_txDelay;
 	unsigned int               m_dmrDelay;
-	unsigned int               m_rxLevel;
-	unsigned int               m_cwIdTXLevel;
-	unsigned int               m_dstarTXLevel;
-	unsigned int               m_dmrTXLevel;
-	unsigned int               m_ysfTXLevel;
-	unsigned int               m_p25TXLevel;
-	int                        m_oscOffset;
+	float                      m_rxLevel;
+	float                      m_cwIdTXLevel;
+	float                      m_dstarTXLevel;
+	float                      m_dmrTXLevel;
+	float                      m_ysfTXLevel;
+	float                      m_p25TXLevel;
+	float                      m_rfLevel;
+	bool                       m_trace;
 	bool                       m_debug;
 	unsigned int               m_rxFrequency;
 	unsigned int               m_txFrequency;
@@ -109,6 +112,8 @@ private:
 	bool                       m_dmrEnabled;
 	bool                       m_ysfEnabled;
 	bool                       m_p25Enabled;
+	int                        m_rxDCOffset;
+	int                        m_txDCOffset;
 	CSerialController          m_serial;
 	unsigned char*             m_buffer;
 	unsigned int               m_length;

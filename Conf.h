@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2015,2016,2017 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2015,2016,2017,2018 by Jonathan Naylor G4KLX
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -32,16 +32,15 @@ public:
 
   // The General section
   std::string  getCallsign() const;
+  unsigned int getId() const;
   unsigned int getTimeout() const;
   bool         getDuplex() const;
-  unsigned int getRFModeHang() const;
-  unsigned int getNetModeHang() const;
   std::string  getDisplay() const;
   bool         getDaemon() const;
 
   // The Info section
-  unsigned int getRxFrequency() const;
-  unsigned int getTxFrequency() const;
+  unsigned int getRXFrequency() const;
+  unsigned int getTXFrequency() const;
   unsigned int getPower() const;
   float        getLatitude() const;
   float        getLongitude() const;
@@ -59,6 +58,7 @@ public:
   // The CW ID section
   bool         getCWIdEnabled() const;
   unsigned int getCWIdTime() const;
+  std::string  getCWIdCallsign() const;
 
   // The DMR Id section
   std::string  getDMRIdLookupFile() const;
@@ -71,14 +71,19 @@ public:
   bool         getModemPTTInvert() const;
   unsigned int getModemTXDelay() const;
   unsigned int getModemDMRDelay() const;
-  unsigned int getModemRXLevel() const;
-  unsigned int getModemCWIdTXLevel() const;
-  unsigned int getModemDStarTXLevel() const;
-  unsigned int getModemDMRTXLevel() const;
-  unsigned int getModemYSFTXLevel() const;
-  unsigned int getModemP25TXLevel() const;
-  int          getModemOscOffset() const;
+  int          getModemTXOffset() const;
+  int          getModemRXOffset() const;
+  int          getModemRXDCOffset() const;
+  int          getModemTXDCOffset() const;
+  float        getModemRFLevel() const;
+  float        getModemRXLevel() const;
+  float        getModemCWIdTXLevel() const;
+  float        getModemDStarTXLevel() const;
+  float        getModemDMRTXLevel() const;
+  float        getModemYSFTXLevel() const;
+  float        getModemP25TXLevel() const;
   std::string  getModemRSSIMappingFile() const;
+  bool         getModemTrace() const;
   bool         getModemDebug() const;
 
   // The UMP section
@@ -90,12 +95,21 @@ public:
   std::string  getDStarModule() const;
   bool         getDStarSelfOnly() const;
   std::vector<std::string> getDStarBlackList() const;
+  bool         getDStarAckReply() const;
+  unsigned int getDStarAckTime() const;
+  bool         getDStarErrorReply() const;
+  bool         getDStarRemoteGateway() const;
+  unsigned int getDStarModeHang() const;
 
   // The DMR section
   bool         getDMREnabled() const;
   bool         getDMRBeacons() const;
+  unsigned int getDMRBeaconInterval() const;
+  unsigned int getDMRBeaconDuration() const;
   unsigned int getDMRId() const;
   unsigned int getDMRColorCode() const;
+  bool         getDMREmbeddedLCOnly() const;
+  bool         getDMRDumpTAData() const;
   bool         getDMRSelfOnly() const;
   std::vector<unsigned int> getDMRPrefixes() const;
   std::vector<unsigned int> getDMRBlackList() const;
@@ -104,20 +118,32 @@ public:
   std::vector<unsigned int> getDMRSlot2TGWhiteList() const;
   unsigned int getDMRCallHang() const;
   unsigned int getDMRTXHang() const;
+  unsigned int getDMRModeHang() const;
 
   // The System Fusion section
-  bool         getFusionEnabled() const;
-  bool         getFusionRemoteGateway() const;
+  bool          getFusionEnabled() const;
+  bool          getFusionLowDeviation() const;
+  bool          getFusionRemoteGateway() const;
+  bool          getFusionSelfOnly() const;
+  bool          getFusionSQLEnabled() const;
+  unsigned char getFusionSQL() const;
+  unsigned int  getFusionModeHang() const;
 
   // The P25 section
   bool         getP25Enabled() const;
+  unsigned int getP25Id() const;
   unsigned int getP25NAC() const;
+  bool         getP25SelfOnly() const;
+  bool         getP25OverrideUID() const;
+  bool         getP25RemoteGateway() const;
+  unsigned int getP25ModeHang() const;
 
   // The D-Star Network section
   bool         getDStarNetworkEnabled() const;
   std::string  getDStarGatewayAddress() const;
   unsigned int getDStarGatewayPort() const;
   unsigned int getDStarLocalPort() const;
+  unsigned int getDStarNetworkModeHang() const;
   bool         getDStarNetworkDebug() const;
 
   // The DMR Network section
@@ -128,16 +154,19 @@ public:
   std::string  getDMRNetworkPassword() const;
   std::string  getDMRNetworkOptions() const;
   bool         getDMRNetworkDebug() const;
+  bool         getDMRNetworkJitterEnabled() const;
   unsigned int getDMRNetworkJitter() const;
   bool         getDMRNetworkSlot1() const;
   bool         getDMRNetworkSlot2() const;
+  unsigned int getDMRNetworkModeHang() const;
 
   // The System Fusion Network section
   bool         getFusionNetworkEnabled() const;
   std::string  getFusionNetworkMyAddress() const;
   unsigned int getFusionNetworkMyPort() const;
-  std::string  getFusionNetworkGwyAddress() const;
-  unsigned int getFusionNetworkGwyPort() const;
+  std::string  getFusionNetworkGatewayAddress() const;
+  unsigned int getFusionNetworkGatewayPort() const;
+  unsigned int getFusionNetworkModeHang() const;
   bool         getFusionNetworkDebug() const;
 
   // The P25 Network section
@@ -145,6 +174,7 @@ public:
   std::string  getP25GatewayAddress() const;
   unsigned int getP25GatewayPort() const;
   unsigned int getP25LocalPort() const;
+  unsigned int getP25NetworkModeHang() const;
   bool         getP25NetworkDebug() const;
 
   // The TFTSERIAL section
@@ -169,11 +199,13 @@ public:
   bool         getNextionDisplayClock() const;
   bool         getNextionUTC() const;
   unsigned int getNextionIdleBrightness() const;
+  unsigned int getNextionScreenLayout() const;
 
   // The OLED section
   unsigned char  getOLEDType() const;
   unsigned char  getOLEDBrightness() const;
   bool           getOLEDInvert() const;
+  bool           getOLEDScroll() const;
 
   // The LCDproc section
   std::string  getLCDprocAddress() const;
@@ -186,10 +218,9 @@ public:
 private:
   std::string  m_file;
   std::string  m_callsign;
+  unsigned int m_id;
   unsigned int m_timeout;
   bool         m_duplex;
-  unsigned int m_rfModeHang;
-  unsigned int m_netModeHang;
   std::string  m_display;
   bool         m_daemon;
 
@@ -210,6 +241,7 @@ private:
 
   bool         m_cwIdEnabled;
   unsigned int m_cwIdTime;
+  std::string  m_cwIdCallsign;
 
   std::string  m_dmrIdLookupFile;
   unsigned int m_dmrIdLookupTime;
@@ -220,14 +252,19 @@ private:
   bool         m_modemPTTInvert;
   unsigned int m_modemTXDelay;
   unsigned int m_modemDMRDelay;
-  unsigned int m_modemRXLevel;
-  unsigned int m_modemCWIdTXLevel;
-  unsigned int m_modemDStarTXLevel;
-  unsigned int m_modemDMRTXLevel;
-  unsigned int m_modemYSFTXLevel;
-  unsigned int m_modemP25TXLevel;
-  int          m_modemOscOffset;
+  int          m_modemTXOffset;
+  int          m_modemRXOffset;
+  int          m_modemRXDCOffset;
+  int          m_modemTXDCOffset;
+  float        m_modemRFLevel;
+  float        m_modemRXLevel;
+  float        m_modemCWIdTXLevel;
+  float        m_modemDStarTXLevel;
+  float        m_modemDMRTXLevel;
+  float        m_modemYSFTXLevel;
+  float        m_modemP25TXLevel;
   std::string  m_modemRSSIMappingFile;
+  bool         m_modemTrace;
   bool         m_modemDebug;
 
   bool         m_umpEnabled;
@@ -237,12 +274,21 @@ private:
   std::string  m_dstarModule;
   bool         m_dstarSelfOnly;
   std::vector<std::string> m_dstarBlackList;
+  bool         m_dstarAckReply;
+  unsigned int m_dstarAckTime;
+  bool         m_dstarErrorReply;
+  bool         m_dstarRemoteGateway;
+  unsigned int m_dstarModeHang;
 
   bool         m_dmrEnabled;
   bool         m_dmrBeacons;
+  unsigned int m_dmrBeaconInterval;
+  unsigned int m_dmrBeaconDuration;
   unsigned int m_dmrId;
   unsigned int m_dmrColorCode;
   bool         m_dmrSelfOnly;
+  bool         m_dmrEmbeddedLCOnly;
+  bool         m_dmrDumpTAData;
   std::vector<unsigned int> m_dmrPrefixes;
   std::vector<unsigned int> m_dmrBlackList;
   std::vector<unsigned int> m_dmrWhiteList;
@@ -250,17 +296,29 @@ private:
   std::vector<unsigned int> m_dmrSlot2TGWhiteList;
   unsigned int m_dmrCallHang;
   unsigned int m_dmrTXHang;
+  unsigned int m_dmrModeHang;
 
-  bool         m_fusionEnabled;
-  bool         m_fusionRemoteGateway;
+  bool          m_fusionEnabled;
+  bool          m_fusionLowDeviation;
+  bool          m_fusionRemoteGateway;
+  bool          m_fusionSelfOnly;
+  bool          m_fusionSQLEnabled;
+  unsigned char m_fusionSQL;
+  unsigned int  m_fusionModeHang;
 
   bool         m_p25Enabled;
+  unsigned int m_p25Id;
   unsigned int m_p25NAC;
+  bool         m_p25SelfOnly;
+  bool         m_p25OverrideUID;
+  bool         m_p25RemoteGateway;
+  unsigned int m_p25ModeHang;
 
   bool         m_dstarNetworkEnabled;
   std::string  m_dstarGatewayAddress;
   unsigned int m_dstarGatewayPort;
   unsigned int m_dstarLocalPort;
+  unsigned int m_dstarNetworkModeHang;
   bool         m_dstarNetworkDebug;
 
   bool         m_dmrNetworkEnabled;
@@ -270,21 +328,25 @@ private:
   std::string  m_dmrNetworkPassword;
   std::string  m_dmrNetworkOptions;
   bool         m_dmrNetworkDebug;
+  bool         m_dmrNetworkJitterEnabled;
   unsigned int m_dmrNetworkJitter;
   bool         m_dmrNetworkSlot1;
   bool         m_dmrNetworkSlot2;
+  unsigned int m_dmrNetworkModeHang;
 
   bool         m_fusionNetworkEnabled;
   std::string  m_fusionNetworkMyAddress;
   unsigned int m_fusionNetworkMyPort;
-  std::string  m_fusionNetworkGwyAddress;
-  unsigned int m_fusionNetworkGwyPort;
+  std::string  m_fusionNetworkGatewayAddress;
+  unsigned int m_fusionNetworkGatewayPort;
+  unsigned int m_fusionNetworkModeHang;
   bool         m_fusionNetworkDebug;
 
   bool         m_p25NetworkEnabled;
   std::string  m_p25GatewayAddress;
   unsigned int m_p25GatewayPort;
   unsigned int m_p25LocalPort;
+  unsigned int m_p25NetworkModeHang;
   bool         m_p25NetworkDebug;
 
   std::string  m_tftSerialPort;
@@ -306,10 +368,12 @@ private:
   bool         m_nextionDisplayClock;
   bool         m_nextionUTC;
   unsigned int m_nextionIdleBrightness;
+  unsigned int m_nextionScreenLayout;
 
   unsigned char m_oledType;
   unsigned char m_oledBrightness;
   bool          m_oledInvert;
+  bool          m_oledScroll;
 
   std::string  m_lcdprocAddress;
   unsigned int m_lcdprocPort;

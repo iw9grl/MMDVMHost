@@ -442,8 +442,8 @@ void CHD44780::writeDStarInt(const char* my1, const char* my2, const char* your,
 void CHD44780::writeDStarRSSIInt(unsigned char rssi) 
 { 
   if (m_rssiCount1 == 0U && m_rows > 2) { 
-		::lcdPosition(m_fd, 0, 2);
-		::lcdPrintf(m_fd, "%u", rssi);
+		::lcdPosition(m_fd, 0, 3);
+		::lcdPrintf(m_fd, "-%3udBm", rssi);
   } 
  
   m_rssiCount1++; 
@@ -615,11 +615,11 @@ void CHD44780::writeDMRInt(unsigned int slotNo, const std::string& src, bool gro
  
 void CHD44780::writeDMRRSSIInt(unsigned int slotNo, unsigned char rssi) 
 { 
-	if (m_cols > 2) {
+	if (m_rows > 2) {
 		if (slotNo == 1U) { 
 			if (m_rssiCount1 == 0U) { 
 				::lcdPosition(m_fd, 0, 3);
-				::lcdPrintf(m_fd, "1 %u", rssi);
+				::lcdPrintf(m_fd, "-%3udBm", rssi);
 			} 
 
 			m_rssiCount1++; 
@@ -628,7 +628,7 @@ void CHD44780::writeDMRRSSIInt(unsigned int slotNo, unsigned char rssi)
 		} else { 
 			if (m_rssiCount2 == 0U) { 
 				::lcdPosition(m_fd, (m_cols / 2), 3);
-				::lcdPrintf(m_fd, "2 %u", rssi);
+				::lcdPrintf(m_fd, "-%3udBm", rssi);
 			} 
 
 		m_rssiCount2++; 
@@ -650,9 +650,19 @@ void CHD44780::clearDMRInt(unsigned int slotNo)
 		if (slotNo == 1U) {
 			::lcdPosition(m_fd, 0, (m_rows / 2) - 1);
 			::lcdPrintf(m_fd, "1 %.*s", m_cols - 2U, LISTENING);
+
+			if (m_rows > 2) { // clear slot 1 RSSI
+				::lcdPosition(m_fd, 0, 3);
+				::lcdPrintf(m_fd, "%.*s", m_cols / 2, DEADSPACE);
+			}
 		} else {
 			::lcdPosition(m_fd, 0, (m_rows / 2));
 			::lcdPrintf(m_fd, "2 %.*s", m_cols - 2U, LISTENING);
+
+			if (m_rows > 2) { // cleat slot 2 RSSI
+				::lcdPosition(m_fd, m_cols / 2, 3);
+				::lcdPrintf(m_fd, "%.*s", m_cols / 2, DEADSPACE);
+			}
 		}
 	} else {
 
@@ -733,7 +743,7 @@ void CHD44780::writeFusionRSSIInt(unsigned char rssi)
 { 
   if (m_rssiCount1 == 0U && m_rows > 2) { 
 		::lcdPosition(m_fd, 0, 3);
-		::lcdPrintf(m_fd, "%u", rssi);
+		::lcdPrintf(m_fd, "-%3udBm", rssi);
   } 
  
   m_rssiCount1++; 
@@ -837,7 +847,7 @@ void CHD44780::writeP25RSSIInt(unsigned char rssi)
 { 
   if (m_rssiCount1 == 0U && m_rows > 2) { 
 		::lcdPosition(m_fd, 0, 3);
-		::lcdPrintf(m_fd, "%u", rssi);
+		::lcdPrintf(m_fd, "-%3udBm", rssi);
   } 
  
   m_rssiCount1++; 

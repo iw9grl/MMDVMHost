@@ -37,7 +37,7 @@
 
 class CDStarControl {
 public:
-	CDStarControl(const std::string& callsign, const std::string& module, bool selfOnly, const std::vector<std::string>& blackList, CDStarNetwork* network, CDisplay* display, unsigned int timeout, bool duplex, CRSSIInterpolator* rssiMapper);
+	CDStarControl(const std::string& callsign, const std::string& module, bool selfOnly, bool ackReply, unsigned int ackTime, bool errorReply, const std::vector<std::string>& blackList, CDStarNetwork* network, CDisplay* display, unsigned int timeout, bool duplex, bool remoteGateway, CRSSIInterpolator* rssiMapper);
 	~CDStarControl();
 
 	bool writeModem(unsigned char* data, unsigned int len);
@@ -50,6 +50,9 @@ private:
 	unsigned char*             m_callsign;
 	unsigned char*             m_gateway;
 	bool                       m_selfOnly;
+	bool                       m_ackReply;
+	bool                       m_errorReply;
+	bool                       m_remoteGateway;
 	std::vector<std::string>   m_blackList;
 	CDStarNetwork*             m_network;
 	CDisplay*                  m_display;
@@ -68,6 +71,7 @@ private:
 	CTimer                     m_netTimeoutTimer;
 	CTimer                     m_packetTimer;
 	CTimer                     m_ackTimer;
+	CTimer                     m_errTimer;
 	CStopWatch                 m_interval;
 	CStopWatch                 m_elapsed;
 	unsigned int               m_rfFrames;
@@ -112,6 +116,7 @@ private:
 	void blankDTMF(unsigned char* data) const;
 
 	void sendAck();
+	void sendError();
 };
 
 #endif

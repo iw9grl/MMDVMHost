@@ -1,5 +1,5 @@
 /*
- *   Copyright (C) 2015,2016,2017 by Jonathan Naylor G4KLX
+ *   Copyright (C) 2015,2016,2017,2018 by Jonathan Naylor G4KLX
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -31,13 +31,13 @@
 
 class CDMRControl {
 public:
-	CDMRControl(unsigned int id, unsigned int colorCode, unsigned int callHang, bool selfOnly, const std::vector<unsigned int>& prefixes, const std::vector<unsigned int>& blacklist, const std::vector<unsigned int>& whitelist, const std::vector<unsigned int>& slot1TGWhitelist, const std::vector<unsigned int>& slot2TGWhitelist, unsigned int timeout, CModem* modem, CDMRNetwork* network, CDisplay* display, bool duplex, CDMRLookup* lookup, CRSSIInterpolator* rssi, unsigned int jitter);
+	CDMRControl(unsigned int id, unsigned int colorCode, unsigned int callHang, bool selfOnly, bool embeddedLCOnly, bool dumpTAData, const std::vector<unsigned int>& prefixes, const std::vector<unsigned int>& blacklist, const std::vector<unsigned int>& whitelist, const std::vector<unsigned int>& slot1TGWhitelist, const std::vector<unsigned int>& slot2TGWhitelist, unsigned int timeout, CModem* modem, CDMRNetwork* network, CDisplay* display, bool duplex, CDMRLookup* lookup, CRSSIInterpolator* rssi);
 	~CDMRControl();
 
 	bool processWakeup(const unsigned char* data);
 
-	void writeModemSlot1(unsigned char* data, unsigned int len);
-	void writeModemSlot2(unsigned char* data, unsigned int len);
+	bool writeModemSlot1(unsigned char* data, unsigned int len);
+	bool writeModemSlot2(unsigned char* data, unsigned int len);
 
 	unsigned int readModemSlot1(unsigned char* data);
 	unsigned int readModemSlot2(unsigned char* data);
@@ -45,7 +45,6 @@ public:
 	void clock();
 
 private:
-	unsigned int m_id;
 	unsigned int m_colorCode;
 	CModem*      m_modem;
 	CDMRNetwork* m_network;
